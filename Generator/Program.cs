@@ -75,21 +75,22 @@ namespace Generator
         {
             var totalMessages = args.Length > 0 ? int.Parse(args[0]) : 1000;
             var numberOfTasks = args.Length > 1 ? int.Parse(args[1]) : 5;
-            var destination = args.Length > 2 ? args[2] : DefaultDestination;
+            var duplicatesPerHundred = args.Length > 2 ? int.Parse(args[2]) : 0;
+            var destination = args.Length > 3 ? args[3] : DefaultDestination;
 
             var tasks = Enumerable.Range(1, numberOfTasks).Select(async taskId =>
             {
                 var random = new Random(Environment.TickCount + taskId);
                 for (var i = 0; i < totalMessages / numberOfTasks; i++)
                 {
-                    await SendTestMessage(endpoint, destination, random).ConfigureAwait(false);
+                    await SendTestMessage(endpoint, destination, random, duplicatesPerHundred).ConfigureAwait(false);
                 }
             }).ToArray();
 
             await Task.WhenAll(tasks);
         }
 
-        static Task SendTestMessage(IRawEndpoint endpoint, string destination, Random random)
+        static Task SendTestMessage(IRawEndpoint endpoint, string destination, Random random, int numberOfDuplciatesPerHundred = 0)
         {
             var payload = new byte[random.Next(bodySize)]; //Random-size body up to max value
             random.NextBytes(payload);
@@ -113,30 +114,44 @@ namespace Generator
             }
 
             counter.Mark();
+            var messageId = Guid.NewGuid().ToString();
             var headers = new Dictionary<string, string>
             {
-                [Headers.MessageId] = Guid.NewGuid().ToString(),
+                [Headers.MessageId] = messageId,
                 [Headers.EnclosedMessageTypes] = typeof(TestMessage).AssemblyQualifiedName,
                 [Headers.ProcessingEndpoint] = "FakeEndpoint",
                 //[FaultsHeaderKeys.FailedQ] = "FakeFailedQ"
             };
-            var operation = new TransportOperation(new OutgoingMessage(Guid.NewGuid().ToString(), headers, binaryPayload),
+            
+            var operation = new TransportOperation(new OutgoingMessage(messageId, headers, binaryPayload),
                 new UnicastAddressTag(destination));
-            return endpoint.Dispatch(new TransportOperations(operation), new TransportTransaction(),
-                new ContextBag());
+
+            TransportOperations operations;
+            
+            if (numberOfDuplciatesPerHundred < random.Next(100))
+            {
+                operations = new TransportOperations(operation, operation);
+            }
+            else
+            {
+                operations = new TransportOperations(operation);
+            }
+
+            return endpoint.Dispatch(operations, new TransportTransaction(), new ContextBag());
         }
 
         static async Task FullSpeedSend(string[] args, CancellationToken ct, IRawEndpoint endpoint)
         {
             var numberOfTasks = args.Length > 0 ? int.Parse(args[0]) : 5;
-            var destination = args.Length > 1 ? args[1] : DefaultDestination;
+            var duplicatesPerHundred = args.Length > 1 ? int.Parse(args[0]) : 5;
+            var destination = args.Length > 2 ? args[2] : DefaultDestination;
 
             var tasks = Enumerable.Range(1, numberOfTasks).Select(async taskId =>
             {
                 var random = new Random(Environment.TickCount + taskId);
                 while (ct.IsCancellationRequested == false)
                 {
-                    await SendTestMessage(endpoint, destination, random).ConfigureAwait(false);
+                    await SendTestMessage(endpoint, destination, random, duplicatesPerHundred).ConfigureAwait(false);
                 }
             }).ToArray();
 
@@ -149,7 +164,8 @@ namespace Generator
             var taskBarriers = new int[maxSenderCount];
 
             var numberOfMessages = int.Parse(args[0]);
-            var destination = args.Length > 1 ? args[1] : DefaultDestination;
+            var duplicatesPerHundred = args.Length > 1 ? int.Parse(args[1]) : 0;
+            var destination = args.Length > 2 ? args[2] : DefaultDestination;
 
             queueLengthProvider.TrackEndpointInputQueue(new EndpointToQueueMapping(destination, destination));
 
@@ -207,7 +223,7 @@ namespace Generator
 
                         if (allowed == 1)
                         {
-                            await SendTestMessage(endpoint, destination, random).ConfigureAwait(false);
+                            await SendTestMessage(endpoint, destination, random, duplicatesPerHundred).ConfigureAwait(false);
                         }
                         else
                         {
@@ -232,7 +248,8 @@ namespace Generator
             var maxSenderCount = 20;
 
             var messagesPerSecond = int.Parse(args[0]);
-            var destination = args.Length > 1 ? args[1] : DefaultDestination;
+            var duplicatesPerHundred = args.Length > 1 ? int.Parse(args[1]) : 0;
+            var destination = args.Length > 2 ? args[2] : DefaultDestination;
 
             var semaphore = new SemaphoreSlim(0);
 
@@ -280,7 +297,7 @@ namespace Generator
                     try
                     {
                         await semaphore.WaitAsync(ct).ConfigureAwait(false);
-                        await SendTestMessage(endpoint, destination, random).ConfigureAwait(false);
+                        await SendTestMessage(endpoint, destination, random, duplicatesPerHundred).ConfigureAwait(false);
                     }
                     catch
                     {
