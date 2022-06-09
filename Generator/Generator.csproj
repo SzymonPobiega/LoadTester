@@ -5,6 +5,10 @@
     <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\bin\Generator</OutputPath>
+  </PropertyGroup>
+
   <ItemGroup>
     
   </ItemGroup>

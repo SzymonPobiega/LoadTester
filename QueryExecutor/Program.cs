@@ -11,11 +11,12 @@ namespace QueryExecutor
         {
             if (args.Length < 2)
             {
-                throw new Exception("Syntax: QueryExecutor connection-string query");
+                throw new Exception("Syntax: QueryExecutor interval connection-string query");
             }
 
-            var connectionString = args[0];
-            var query = args[1];
+            var interval = TimeSpan.Parse(args[0]);
+            var connectionString = args[1];
+            var query = args[2];
 
             while (true)
             {
@@ -33,13 +34,13 @@ namespace QueryExecutor
                                 {
                                     output.Append($"{reader[i]},");
                                 }
-                                Console.WriteLine(output);
+                                Console.WriteLine(DateTime.UtcNow + ": " + output);
                             }
                         }
                     }
                 }
 
-                await Task.Delay(5000);
+                await Task.Delay(interval);
             }
         }
     }

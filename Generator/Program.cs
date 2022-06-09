@@ -92,7 +92,8 @@ namespace Generator
 
         static Task SendTestMessage(IRawEndpoint endpoint, string destination, Random random, int numberOfDuplciatesPerHundred = 0)
         {
-            var payload = new byte[random.Next(bodySize)]; //Random-size body up to max value
+            //var payload = new byte[random.Next(bodySize)]; //Random-size body up to max value
+            var payload = new byte[bodySize];
             random.NextBytes(payload);
 
             var message = new TestMessage

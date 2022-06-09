@@ -5,6 +5,10 @@
     <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<OutputPath>..\bin\OutboxProcessor</OutputPath>
+	</PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.1" />

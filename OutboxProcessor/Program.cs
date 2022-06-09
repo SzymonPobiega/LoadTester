@@ -6,6 +6,7 @@ using Shared;
 
 namespace OutboxProcessor
 {
+    using NServiceBus.Logging;
     using NServiceBus.Pipeline;
 
     class Program
@@ -14,6 +15,9 @@ namespace OutboxProcessor
 
         static async Task Main(string[] commandLineArgs)
         {
+            var defaultFactory = LogManager.Use<DefaultFactory>();
+            defaultFactory.Level(LogLevel.Warn);
+
             var connectionString = commandLineArgs[0];
 
             var config = new EndpointConfiguration("Processor");
@@ -24,7 +28,7 @@ namespace OutboxProcessor
             persistence.SubscriptionSettings().DisableCache();
             var outbox = config.EnableOutbox();
             outbox.UsePessimisticConcurrencyControl();
-            outbox.KeepDeduplicationDataFor(TimeSpan.FromMinutes(45));
+            outbox.KeepDeduplicationDataFor(TimeSpan.FromDays(3));
             config.UseSerialization<NewtonsoftSerializer>();
             config.SendFailedMessagesTo("error");
             var transport = config.UseTransport<RabbitMQTransport>();
@@ -34,6 +38,7 @@ namespace OutboxProcessor
             config.EnableInstallers();
             config.LimitMessageProcessingConcurrencyTo(32);
             config.Pipeline.Register(new DelayBehavior(), "Delay");
+
 
             var metrics = new Metrics();
             var reporter = new MetricsReporter(metrics, Console.WriteLine, TimeSpan.FromSeconds(2));
